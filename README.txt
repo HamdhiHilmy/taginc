@@ -10,10 +10,16 @@ api/ plus Vercel KV (site data + the owner's password hash) and Vercel Blob
 WHAT IS IN THIS FOLDER
 
 index.html
-  The whole site: markup, styles and client-side script in one file. On
-  load it fetches the latest published data from /api/state and the
-  owner's sign-in status from /api/auth/session, falling back to the data
-  embedded in this file if the API is unreachable.
+  The public, read-only storefront: markup, styles and client-side script
+  in one file. On load it fetches the latest published data from
+  /api/state, falling back to the data embedded in this file if the API is
+  unreachable. No owner controls appear here.
+
+admin.html
+  The owner's management page, at /admin. Sign in (or create the owner
+  sign-in the first time), then add/edit/delete products, upload the logo
+  and department photos, and Publish changes. Not linked from the public
+  site; go to it directly.
 
 images
   The logo (with and without the @), the name board PDF, and the photos
@@ -38,8 +44,8 @@ ONE-TIME VERCEL SETUP
    long random string (e.g. generate one with `openssl rand -hex 32`).
 3. Redeploy once so the functions pick up the new environment variables.
 
-After that, open the site, use "Create your owner sign-in" in the bar at
-the top, and sign in to add products, upload photos and Publish.
+After that, go to https://taginc.vercel.app/admin, create the owner
+sign-in, and use that page to add products, upload photos and Publish.
 
 PRODUCTS SAVED IN THIS COPY'S FALLBACK DATA
 

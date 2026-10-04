@@ -1,6 +1,5 @@
 const crypto = require('crypto');
-const { kv } = require('@vercel/kv');
-const { getAuth } = require('../../lib/store');
+const { kv, getAuth } = require('../../lib/store');
 const { setSessionCookie } = require('../../lib/session');
 
 const WINDOW_SECONDS = 15 * 60;
