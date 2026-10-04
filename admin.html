@@ -290,11 +290,49 @@ img{max-width:100%;display:block}
     ]);
   }
 
+  /* The logo is a separate top-level field (state.logo), not one of state.photos. */
+  function logoRow() {
+    var src = state.logo;
+    var thumb = h('div', { class: 'photo-thumb weave' }, src ? h('img', { src: src, alt: '' }) : null);
+    var pickBtn;
+    var input = h('input', {
+      type: 'file', accept: 'image/*', class: 'visually-hidden', tabindex: '-1', 'aria-hidden': 'true',
+      onchange: function (e) {
+        var f = e.target.files && e.target.files[0];
+        if (!f) return;
+        readImage(f, 600, function (err, url) {
+          if (err) { notice = 'That file couldn’t be read as a photo. Try a JPG or PNG.'; render(); return; }
+          pickBtn.disabled = true;
+          pickBtn.textContent = 'Uploading…';
+          uploadPhoto(url).then(function (hostedUrl) {
+            state.logo = hostedUrl;
+            changed();
+          }, function () {
+            notice = 'That photo couldn’t be uploaded. Check your connection and try again.';
+            render();
+          });
+        });
+      }
+    });
+    pickBtn = h('button', { class: 'btn btn-light btn-small', type: 'button', onclick: function () { input.click(); } }, src ? 'Change logo' : 'Add logo');
+    var removeBtn = src ? h('button', {
+      class: 'btn btn-light btn-small', type: 'button',
+      onclick: function () { state.logo = ''; changed(); }
+    }, 'Remove logo') : null;
+    return h('li', { class: 'photo-item' }, [
+      thumb,
+      h('div', { class: 'photo-item-body' }, [
+        h('div', { class: 'photo-item-label', text: 'Logo' }),
+        h('div', { class: 'photo-controls' }, [input, pickBtn, removeBtn])
+      ])
+    ]);
+  }
+
   function photosSection() {
     return h('section', { class: 'admin-section' }, [
       h('h2', { text: 'Photos' }),
       h('ul', { class: 'photo-list' }, [
-        photoRow('logo', 'Logo', 600),
+        logoRow(),
         photoRow('hero', 'Homepage banner photo', 1600),
         photoRow('men', 'Men department photo', 1280),
         photoRow('kids', 'Kids department photo', 1280)
@@ -543,6 +581,31 @@ img{max-width:100%;display:block}
     app.appendChild(h('main', { class: 'admin-main' }, [photosSection(), productsSection()]));
   }
 
+  function normalizeState(st) {
+    if (!st || typeof st !== 'object') st = {};
+    if (!st.photos || typeof st.photos !== 'object') st.photos = {};
+    if (!st.alts || typeof st.alts !== 'object') st.alts = {};
+    if (!st.tints || typeof st.tints !== 'object') st.tints = {};
+    if (!Array.isArray(st.products)) st.products = [];
+    if (typeof st.logo !== 'string') st.logo = '';
+    return st;
+  }
+
+  /* Nothing has been published yet: fall back to the same built-in content the
+     public homepage itself falls back to, instead of starting from a blank site. */
+  function fetchHomepageSeed() {
+    return fetch('/', { credentials: 'same-origin' }).then(function (res) { return res.ok ? res.text() : null; }).then(function (html) {
+      if (!html) return null;
+      var m = html.match(/<script type="application\/json" id="data">([\s\S]*?)<\/script>/);
+      if (!m) return null;
+      try {
+        var seed = JSON.parse(m[1]);
+        delete seed.auth;
+        return seed;
+      } catch (e) { return null; }
+    }).catch(function () { return null; });
+  }
+
   render();
 
   Promise.all([
@@ -550,18 +613,13 @@ img{max-width:100%;display:block}
     fetch('/api/auth/session', { credentials: 'same-origin' }).then(function (res) { return res.ok ? res.json() : null; }).catch(function () { return null; })
   ]).then(function (r) {
     var st = r[0], s = r[1];
-    if (st && typeof st === 'object') {
-      state = st;
-      if (!state.photos || typeof state.photos !== 'object') state.photos = {};
-      if (!state.alts || typeof state.alts !== 'object') state.alts = {};
-      if (!state.tints || typeof state.tints !== 'object') state.tints = {};
-      if (!Array.isArray(state.products)) state.products = [];
-      if (typeof state.logo !== 'string') state.logo = '';
-    }
-    saved = JSON.stringify(state);
     if (s) { loggedIn = !!s.loggedIn; ownerExists = !!s.ownerExists; }
-    loaded = true;
-    render();
+    return (st ? Promise.resolve(st) : fetchHomepageSeed()).then(function (resolved) {
+      state = normalizeState(resolved);
+      saved = JSON.stringify(state);
+      loaded = true;
+      render();
+    });
   });
 
   window.addEventListener('beforeunload', function (e) {
